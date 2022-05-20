@@ -16,12 +16,20 @@ def main():
     msg = "Cargo.lock: update\n\n"
     for line in proc.stdout.splitlines():
         print(line)
-        prefix = "    Updating "
-        if line.startswith(prefix):
-            line = line[len(prefix) :]  # noqa: E203
-            if line != "crates.io index":
-                msg += f"* {line}"
-                msg += "\n"
+        line = line.strip().lower()
+        if line == "updating crates.io index":
+            continue
+
+        words = line.split()
+        verb = words[0]
+
+        if verb.endswith("ing"):
+            verb = verb[:-3]
+            verb += "ed"
+
+        msg += f"{verb} "
+        msg += " ".join(words[1:])
+        msg += "\n"
 
     proc = subprocess.run(["git", "add", "Cargo.lock"])
     if proc.returncode != 0:
