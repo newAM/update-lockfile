@@ -1,3 +1,10 @@
 # update-lockfile
 
-Simple python scripts to update lockfiles for various package managers and commit the result.
+[![CI](https://github.com/newAM/update-lockfile/workflows/CI/badge.svg)](https://github.com/newAM/update-lockfile/actions)
+
+Simple python scripts to update lockfiles and commit the result.
+
+Lockfiles supported:
+
+* `Cargo.lock`
+* `flake.lock`
