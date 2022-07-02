@@ -1,0 +1,3 @@
+[tool.black]
+# writePython3Bin does a flake8 check without including .flake8
+line-length = 79

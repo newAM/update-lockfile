@@ -10,34 +10,49 @@
     flake-utils.lib.eachSystem [
       "x86_64-linux"
       "aarch64-linux"
-      "aarch64-darwin"
+      # "aarch64-darwin"
     ]
       (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
         in
         rec {
-          packages = {
-            update-cargo = pkgs.writers.writePython3Bin "update-cargo" { }
-              (builtins.readFile ./update-cargo.py);
-            update-flake = pkgs.writers.writePython3Bin "update-flake" { }
-              (builtins.readFile ./update-flake.py);
-          };
-          apps = {
-            update-cargo = flake-utils.lib.mkApp { drv = packages.update-cargo; };
-            update-flake = flake-utils.lib.mkApp { drv = packages.update-flake; };
+          packages.default = pkgs.writers.writePython3Bin "update-lockfile" { }
+            (builtins.readFile ./update-lockfile.py);
+
+          apps.default = {
+            type = "app";
+            program = "${packages.default}/bin/update-lockfile";
           };
 
           checks = {
-            format = pkgs.runCommand "format" { } ''
-              ${pkgs.nixpkgs-fmt}/bin/nixpkgs-fmt --check ${./.}
+            pkg = packages.default;
+
+            black = pkgs.runCommand "black" { } ''
               ${pkgs.python3Packages.black}/bin/black ${./.}
               touch $out
             '';
 
-            lint = pkgs.runCommand "lint" { } ''
+            flake8 = pkgs.runCommand "flake8"
+              {
+                buildInputs = with pkgs.python3Packages; [
+                  flake8
+                  flake8-bugbear
+                  pep8-naming
+                ];
+              }
+              ''
+                flake8 --max-line-length 88 ${./.}
+                touch $out
+              '';
+
+            nixpkgs-fmt = pkgs.runCommand "nixpkgs-fmt" { } ''
+              ${pkgs.nixpkgs-fmt}/bin/nixpkgs-fmt --check ${./.}
+              touch $out
+            '';
+
+            statix = pkgs.runCommand "statix" { } ''
               ${pkgs.statix}/bin/statix check ${./.}
-              ${pkgs.python3Packages.flake8}/bin/flake8 ${./.}
               touch $out
             '';
           };
