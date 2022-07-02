@@ -8,3 +8,4 @@ Lockfiles supported:
 
 * `Cargo.lock`
 * `flake.lock`
+* `poetry.lock`
