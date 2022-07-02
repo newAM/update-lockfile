@@ -47,20 +47,6 @@ async def is_dirty(file: str) -> bool:
         return True
 
 
-async def update_flake() -> Optional[LockfileUpdate]:
-    lockfile = "flake.lock"
-    lines = await run(["nix", "flake", "update"])
-    if not await is_dirty(lockfile):
-        return None
-    await git_add(lockfile)
-
-    msg = []
-    for line in lines:
-        if not line.lower().startswith("warning"):
-            msg.append(line)
-    return LockfileUpdate(lockfile, msg)
-
-
 async def update_cargo() -> Optional[LockfileUpdate]:
     lockfile = "Cargo.lock"
     lines = await run(["cargo", "update"])
@@ -86,6 +72,33 @@ async def update_cargo() -> Optional[LockfileUpdate]:
     return LockfileUpdate(lockfile, msg)
 
 
+async def update_flake() -> Optional[LockfileUpdate]:
+    lockfile = "flake.lock"
+    lines = await run(["nix", "flake", "update"])
+    if not await is_dirty(lockfile):
+        return None
+    await git_add(lockfile)
+
+    msg = []
+    for line in lines:
+        if not line.lower().startswith("warning"):
+            msg.append(line)
+    return LockfileUpdate(lockfile, msg)
+
+
+async def update_poetry() -> Optional[LockfileUpdate]:
+    lockfile = "poetry.lock"
+    await run(["poetry", "update", "--no-interaction", "--no-ansi", "--lock"])
+    if not await is_dirty(lockfile):
+        return None
+    await git_add(lockfile)
+
+    # poetry does not display updated deps :(
+    msg = []
+
+    return LockfileUpdate(lockfile, msg)
+
+
 async def amain(args: argparse.Namespace) -> int:
     print("Autodetecting lockfiles from current directory")
 
@@ -95,6 +108,8 @@ async def amain(args: argparse.Namespace) -> int:
             coros.append(update_cargo())
         elif file == "flake.lock":
             coros.append(update_flake())
+        elif file == "poetry.lock":
+            coros.append(update_poetry())
 
     if len(coros) == 0:
         print("No lockfiles to update")
