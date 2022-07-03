@@ -10,7 +10,7 @@ class LockfileUpdate(NamedTuple):
 
 
 class SubprocessError(Exception):
-    def __init__(self, message: str, returncode: int):
+    def __init__(self, message: str, returncode: Optional[int]):
         super().__init__(message)
         self.returncode = returncode
 
@@ -23,7 +23,7 @@ async def run(cmd: List[str]) -> List[str]:
         stderr=asyncio.subprocess.STDOUT,
         stdout=asyncio.subprocess.PIPE,
     )
-    stdout, stderr = await proc.communicate()
+    stdout, _ = await proc.communicate()
     if proc.returncode != 0:
         msg = f"Failed with {proc.returncode} running `{cmds}`"
         print(msg)
@@ -99,7 +99,7 @@ async def update_poetry() -> Optional[LockfileUpdate]:
     return LockfileUpdate(lockfile, msg)
 
 
-async def amain(args: argparse.Namespace) -> int:
+async def amain(args: argparse.Namespace) -> Optional[int]:
     print("Autodetecting lockfiles from current directory")
 
     coros = []
@@ -123,7 +123,7 @@ async def amain(args: argparse.Namespace) -> int:
     updates = [u for u in updates if u is not None]
 
     msg = []
-    subject = "; ".join([u.lockfile for u in updates])
+    subject = ", ".join([u.lockfile for u in updates])
     subject += ": update\n"
     msg.append(subject)
     for idx, update in enumerate(updates):
@@ -143,7 +143,11 @@ def main():
     args = parser.parse_args()
 
     rc = asyncio.run(amain(args))
-    exit(rc)
+    if rc is None:
+        print("Returncode is None")
+        exit(1)
+    else:
+        exit(rc)
 
 
 if __name__ == "__main__":
