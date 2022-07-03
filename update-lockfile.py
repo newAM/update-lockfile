@@ -122,6 +122,10 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
 
     updates = [u for u in updates if u is not None]
 
+    if len(updates) == 0:
+        print("Everything is already up-to-date!")
+        return 0
+
     msg = []
     subject = ", ".join([u.lockfile for u in updates])
     subject += ": update\n"
