@@ -9,9 +9,9 @@
 
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachSystem [
-      "x86_64-linux"
+      "aarch64-darwin"
       "aarch64-linux"
-      # "aarch64-darwin"
+      "x86_64-linux"
     ]
       (system:
         let
