@@ -2,7 +2,8 @@
   description = "Lockfile updaters";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    # temporarily using master for aarch64-darwin fixes
+    nixpkgs.url = "github:nixos/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
