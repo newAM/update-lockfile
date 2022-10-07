@@ -147,11 +147,7 @@ def main():
     args = parser.parse_args()
 
     rc = asyncio.run(amain(args))
-    if rc is None:
-        print("Returncode is None")
-        exit(1)
-    else:
-        exit(rc)
+    exit(rc)
 
 
 if __name__ == "__main__":
