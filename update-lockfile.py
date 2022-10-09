@@ -137,13 +137,20 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
         if idx != len(updates) - 1:
             msg.append("")
 
-    await run(["git", "commit", "-m", "\n".join(msg)])
+    if not args.no_commit:
+        await run(["git", "commit", "-m", "\n".join(msg)])
 
     return 0
 
 
 def main():
     parser = argparse.ArgumentParser(description="Update lockfiles")
+    parser.add_argument(
+        "-n",
+        "--no-commit",
+        action="store_true",
+        help="Update lockfiles without a commit",
+    )
     args = parser.parse_args()
 
     rc = asyncio.run(amain(args))

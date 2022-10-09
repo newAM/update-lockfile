@@ -1,5 +1,5 @@
 {
-  description = "Lockfile updaters";
+  description = "Lockfile updater";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -9,7 +9,7 @@
   }: let
     overlay = final: prev: {
       update-lockfile =
-        prev.writers.writePython3Bin "update-lockfile" {}
+        prev.writers.writePython3Bin "update-lockfile" {flakeIgnore = ["E501"];}
         (builtins.readFile ./update-lockfile.py);
     };
 
@@ -23,6 +23,9 @@
         inherit system;
         overlays = [overlay];
       };
+
+    nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices ./. [".nix"];
+    pySrc = nixpkgs.lib.sources.sourceFilesBySuffices ./. [".py"];
   in {
     overlays = {
       default = overlay;
@@ -58,7 +61,7 @@
         inherit (pkgs) update-lockfile;
 
         black = pkgs.runCommand "black" {} ''
-          ${pkgs.python3Packages.black}/bin/black ${./.}
+          ${pkgs.python3Packages.black}/bin/black ${pySrc}
           touch $out
         '';
 
@@ -72,17 +75,17 @@
             ];
           }
           ''
-            flake8 --max-line-length 88 ${./.}
+            flake8 --max-line-length 88 ${pySrc}
             touch $out
           '';
 
         alejandra = pkgs.runCommand "alejandra" {} ''
-          ${pkgs.alejandra}/bin/alejandra --check ${./.}
+          ${pkgs.alejandra}/bin/alejandra --check ${nixSrc}
           touch $out
         '';
 
         statix = pkgs.runCommand "statix" {} ''
-          ${pkgs.statix}/bin/statix check ${./.}
+          ${pkgs.statix}/bin/statix check ${nixSrc}
           touch $out
         '';
       }
