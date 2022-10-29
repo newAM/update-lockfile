@@ -105,11 +105,20 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
     coros = []
     for file in os.listdir():
         if file == "Cargo.lock":
-            coros.append(update_cargo())
+            if "cargo" in args.skip:
+                print("Skipping Cargo.lock")
+            else:
+                coros.append(update_cargo())
         elif file == "flake.lock":
-            coros.append(update_flake())
+            if "flake" in args.skip:
+                print("Skipping flake.lock")
+            else:
+                coros.append(update_flake())
         elif file == "poetry.lock":
-            coros.append(update_poetry())
+            if "poetry" in args.skip:
+                print("Skipping poetry.lock")
+            else:
+                coros.append(update_poetry())
 
     if len(coros) == 0:
         print("No lockfiles to update")
@@ -150,6 +159,12 @@ def main():
         "--no-commit",
         action="store_true",
         help="Update lockfiles without a commit",
+    )
+    parser.add_argument(
+        "-s",
+        "--skip",
+        choices=["poetry", "cargo", "flake"],
+        help="Skip updating this type of lockfile",
     )
     args = parser.parse_args()
 
