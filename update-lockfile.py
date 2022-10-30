@@ -165,6 +165,7 @@ def main():
         "--skip",
         choices=["poetry", "cargo", "flake"],
         action="append",
+        default=[],
         help="Skip updating this type of lockfile",
     )
     args = parser.parse_args()
