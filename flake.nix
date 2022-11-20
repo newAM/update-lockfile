@@ -14,8 +14,8 @@
 
     overlay = final: prev: {
       update-lockfile =
-        prev.writers.writePython3Bin "update-lockfile" {flakeIgnore = ["E501"];}
-        (builtins.readFile ./update-lockfile.py);
+        (prev.writers.makeScriptWriter {interpreter = "${prev.python311}/bin/python";}) "/bin/update-lockfile"
+        (builtins.readFile ./update_lockfile.py);
     };
 
     forEachSystem = nixpkgs.lib.genAttrs [
@@ -56,15 +56,27 @@
       }
     );
 
+    formatter = forEachSystem (
+      system: let
+        pkgs = importPkgs system;
+      in
+        pkgs.alejandra
+    );
+
     checks = let
       nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices src [".nix"];
-      pySrc = nixpkgs.lib.sources.sourceFilesBySuffices src [".py"];
+      pySrc = nixpkgs.lib.sources.sourceFilesBySuffices src [".py" ".toml"];
     in
       forEachSystem (
         system: let
           pkgs = importPkgs system;
         in {
           inherit (pkgs) update-lockfile;
+
+          pytest = pkgs.runCommand "pytest" {} ''
+            ${pkgs.python311Packages.pytest}/bin/pytest ${pySrc}
+            touch $out
+          '';
 
           black = pkgs.runCommand "black" {} ''
             ${pkgs.python3Packages.black}/bin/black ${pySrc}

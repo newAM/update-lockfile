@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import os
+import tomllib
 from typing import List, NamedTuple, Optional
 
 
@@ -13,6 +14,44 @@ class SubprocessError(Exception):
     def __init__(self, message: str, returncode: Optional[int]):
         super().__init__(message)
         self.returncode = returncode
+
+
+class PoetryPackage(NamedTuple):
+    name: str
+    version: str
+
+
+def read_poetry_lock(path: str) -> List[PoetryPackage]:
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+    ret = []
+    for pkg in data["package"]:
+        ret.append(PoetryPackage(name=pkg["name"], version=pkg["version"]))
+    return ret
+
+
+def poetry_lock_diff(a: List[PoetryPackage], b: List[PoetryPackage]) -> List[str]:
+    ret = []
+
+    found = []
+    for pa in a:
+        for pb in b:
+            if pa.name == pb.name:
+                if pa.version != pb.version:
+                    ret.append(f"updated {pa.name} {pa.version} -> {pb.version}")
+                found.append(pa.name)
+                break
+
+        if pa.name not in found:
+            ret.append(f"removed {pa.name} {pa.version}")
+            found.append(pa.name)
+
+    for pb in b:
+        if pb.name not in found:
+            ret.append(f"added {pa.name} {pa.version}")
+            found.append(pb.name)
+
+    return ret
 
 
 async def run(cmd: List[str]) -> List[str]:
@@ -88,13 +127,15 @@ async def update_flake() -> Optional[LockfileUpdate]:
 
 async def update_poetry() -> Optional[LockfileUpdate]:
     lockfile = "poetry.lock"
+    a = read_poetry_lock(lockfile)
     await run(["poetry", "update", "--no-interaction", "--no-ansi", "--lock"])
     if not await is_dirty(lockfile):
         return None
+    b = read_poetry_lock(lockfile)
     await git_add(lockfile)
 
-    # poetry does not display updated deps :(
-    msg = []
+    # poetry does not display updated deps, diff manually
+    msg = poetry_lock_diff(a, b)
 
     return LockfileUpdate(lockfile, msg)
 
