@@ -7,6 +7,11 @@
     self,
     nixpkgs,
   }: let
+    src = builtins.path {
+      path = ./.;
+      name = "update-lockfile";
+    };
+
     overlay = final: prev: {
       update-lockfile =
         prev.writers.writePython3Bin "update-lockfile" {flakeIgnore = ["E501"];}
@@ -52,8 +57,8 @@
     );
 
     checks = let
-      nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices ./. [".nix"];
-      pySrc = nixpkgs.lib.sources.sourceFilesBySuffices ./. [".py"];
+      nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices src [".nix"];
+      pySrc = nixpkgs.lib.sources.sourceFilesBySuffices src [".py"];
     in
       forEachSystem (
         system: let
