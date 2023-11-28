@@ -120,7 +120,7 @@ async def update_flake() -> Optional[LockfileUpdate]:
 
     msg = []
     for line in lines:
-        if not line.lower().startswith("warning"):
+        if not line.lower().strip().startswith("warning"):
             msg.append(line)
     return LockfileUpdate(lockfile, msg)
 
