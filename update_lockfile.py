@@ -57,10 +57,13 @@ def poetry_lock_diff(a: List[PoetryPackage], b: List[PoetryPackage]) -> List[str
 async def run(cmd: List[str]) -> List[str]:
     cmds = " ".join(cmd)
     print(f"Running `{cmds}`")
+    env = dict(os.environ)
+    env["NO_COLOR"] = "1"
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stderr=asyncio.subprocess.STDOUT,
         stdout=asyncio.subprocess.PIPE,
+        env=env,
     )
     stdout, _ = await proc.communicate()
     if proc.returncode != 0:
