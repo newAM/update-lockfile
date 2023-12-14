@@ -193,10 +193,8 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
         if idx != len(updates) - 1:
             msg.append("")
 
-    msg = "\n".join(msg).replace("\n\n", "\n")
-
     if not args.no_commit:
-        await run(["git", "commit", "-m", msg])
+        await run(["git", "commit", "-m", "\n".join(msg)])
 
     return 0
 
