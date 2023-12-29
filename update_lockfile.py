@@ -72,8 +72,8 @@ async def run(cmd: List[str]) -> List[str]:
         raise SubprocessError(msg, proc.returncode)
     lines = []
     for line in stdout.decode("utf-8").splitlines():
-        print(line)
-        lines.append(line)
+        if line:
+            lines.append(line)
     return lines
 
 
@@ -123,10 +123,7 @@ async def update_flake() -> Optional[LockfileUpdate]:
 
     msg = []
     for line in lines:
-        line_san = line.lower().strip()
-        if not (
-            line_san.startswith("warning") or "warning: updating lock file" in line_san
-        ):
+        if line.startswith(("• Updated input ", "  ")):
             msg.append(line)
     return LockfileUpdate(lockfile, msg)
 
@@ -182,19 +179,19 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
         print("Everything is already up-to-date!")
         return 0
 
-    msg = []
-    subject = ", ".join([u.lockfile for u in updates])
-    subject += ": update\n"
-    msg.append(subject)
+    msg = ", ".join([u.lockfile for u in updates])
+    msg += ": update\n\n"
     for idx, update in enumerate(updates):
-        msg.extend(update.lines)
+        msg += "\n".join(update.lines)
 
         # create a space between messages if not the last file
         if idx != len(updates) - 1:
-            msg.append("")
+            msg += "\n"
 
     if not args.no_commit:
-        await run(["git", "commit", "-m", "\n".join(msg)])
+        await run(["git", "commit", "-m", msg])
+    else:
+        print(msg)
 
     return 0
 
