@@ -186,7 +186,7 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
 
         # create a space between messages if not the last file
         if idx != len(updates) - 1:
-            msg += "\n"
+            msg += "\n\n"
 
     if not args.no_commit:
         await run(["git", "commit", "-m", msg])
