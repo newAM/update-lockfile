@@ -123,7 +123,7 @@ async def update_flake() -> Optional[LockfileUpdate]:
 
     msg = []
     for line in lines:
-        if line.startswith(("• Updated input ", "  ")):
+        if line.startswith(("• ", "  ")):
             msg.append(line)
     return LockfileUpdate(lockfile, msg)
 
