@@ -101,6 +101,8 @@ async def update_cargo() -> Optional[LockfileUpdate]:
         line = line.strip().lower()
         if line == "updating crates.io index":
             continue
+        if line.lower().startswith("note:"):
+            continue
 
         words = line.split()
         verb = words[0]
