@@ -103,6 +103,8 @@ async def update_cargo() -> Optional[LockfileUpdate]:
             continue
         if line.lower().startswith("note:"):
             continue
+        if line.lower().startswith("locking "):
+            continue
 
         words = line.split()
         verb = words[0]
