@@ -3,6 +3,7 @@
   buildPythonApplication,
   src,
   setuptools,
+  rich,
   pytestCheckHook,
 }: let
   pyprojectToml = lib.importTOML ./pyproject.toml;
@@ -16,6 +17,10 @@ in
 
     build-system = [
       setuptools
+    ];
+
+    dependencies = [
+      rich
     ];
 
     nativeCheckInputs = [

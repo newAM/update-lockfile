@@ -2,7 +2,9 @@ import argparse
 import asyncio
 import os
 import tomllib
-from typing import List, NamedTuple, Optional
+from typing import List, NamedTuple, Optional, Callable, Any
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from dataclasses import dataclass
 
 
 class LockfileUpdate(NamedTuple):
@@ -56,7 +58,6 @@ def poetry_lock_diff(a: List[PoetryPackage], b: List[PoetryPackage]) -> List[str
 
 async def run(cmd: List[str]) -> List[str]:
     cmds = " ".join(cmd)
-    print(f"Running `{cmds}`")
     env = dict(os.environ)
     env["NO_COLOR"] = "1"
     proc = await asyncio.create_subprocess_exec(
@@ -147,49 +148,130 @@ async def update_poetry() -> Optional[LockfileUpdate]:
     return LockfileUpdate(lockfile, msg)
 
 
+class Lockfile(NamedTuple):
+    file_name: str
+    function: Callable
+    emoji: str
+    skip_flag: str
+
+    def description(self) -> str:
+        return f"{self.emoji} Updating {self.file_name}..."
+
+    def description_updated(self) -> str:
+        return f"{self.emoji} Updated {self.file_name}"
+
+    def description_no_update(self) -> str:
+        return f"{self.emoji} {self.file_name} is up-to-date!"
+
+    def description_error(self) -> str:
+        return f"{self.emoji} Failed to update {self.file_name}"
+
+
+lockfiles = [
+    Lockfile(
+        file_name="Cargo.lock",
+        function=update_cargo,
+        emoji="🦀",
+        skip_flag="cargo",
+    ),
+    Lockfile(
+        file_name="flake.lock",
+        function=update_flake,
+        emoji="❄️",
+        skip_flag="flake",
+    ),
+    Lockfile(
+        file_name="poetry.lock",
+        function=update_poetry,
+        emoji="📖",
+        skip_flag="poetry",
+    ),
+]
+
+
+@dataclass
+class UpdateTask:
+    task: asyncio.Task
+    task_id: Any
+    lockfile: Lockfile
+    result: Optional[LockfileUpdate] = None
+
+
 async def amain(args: argparse.Namespace) -> Optional[int]:
-    print("Autodetecting lockfiles from current directory")
-
-    coros = []
+    updates = []
     for file in os.listdir():
-        if file == "Cargo.lock":
-            if "cargo" in args.skip:
-                print("Skipping Cargo.lock")
-            else:
-                coros.append(update_cargo())
-        elif file == "flake.lock":
-            if "flake" in args.skip:
-                print("Skipping flake.lock")
-            else:
-                coros.append(update_flake())
-        elif file == "poetry.lock":
-            if "poetry" in args.skip:
-                print("Skipping poetry.lock")
-            else:
-                coros.append(update_poetry())
+        for lockfile in lockfiles:
+            if file == lockfile.file_name:
+                if lockfile in args.skip:
+                    print(f"Skipping {lockfile.file_name}")
+                else:
+                    updates.append(lockfile)
 
-    if len(coros) == 0:
+    num_updates: int = len(updates)
+
+    if num_updates == 0:
         print("No lockfiles to update")
-        return 1
-
-    try:
-        updates = await asyncio.gather(*coros)
-    except SubprocessError as e:
-        return e.returncode
-
-    updates = [u for u in updates if u is not None]
-
-    if len(updates) == 0:
-        print("Everything is already up-to-date!")
         return 0
 
-    msg = ", ".join([u.lockfile for u in updates])
+    with Progress(
+        SpinnerColumn(finished_text="✅"),
+        TextColumn("[progress.description]{task.description}"),
+    ) as progress:
+        update_tasks = []
+        for update in updates:
+            update_tasks.append(
+                UpdateTask(
+                    task=asyncio.create_task(update.function()),
+                    task_id=progress.add_task(update.description(), total=1),
+                    lockfile=update,
+                )
+            )
+
+        completions: List[str] = []
+        while True:
+            for update_task in update_tasks:
+                if update_task.task.done():
+                    if update_task.lockfile.file_name in completions:
+                        continue
+                    completions.append(update_task.lockfile.file_name)
+                    try:
+                        update_task.result = update_task.task.result()
+                    except Exception as e:
+                        print(e)
+                        progress.update(
+                            update_task.task_id,
+                            description=update_task.lockfile.description_error(),
+                        )
+                    else:
+                        if update_task.result is None:
+                            description = update_task.lockfile.description_no_update()
+                        else:
+                            description = update_task.lockfile.description_updated()
+                        progress.update(
+                            update_task.task_id,
+                            description=description,
+                            completed=1,
+                        )
+                else:
+                    progress.update(update_task.task_id)
+
+            if len(completions) == num_updates:
+                break
+            else:
+                await asyncio.sleep(0.02)
+
+    results = [u.result for u in update_tasks if u.result is not None]
+
+    if len(results) == 0:
+        return 0
+
+    msg = ", ".join([r.lockfile for r in results])
     msg += ": update\n\n"
-    for idx, update in enumerate(updates):
+    for idx, update in enumerate(results):
         msg += "\n".join(update.lines)
 
         # create a space between messages if not the last file
-        if idx != len(updates) - 1:
+        if idx != len(results) - 1:
             msg += "\n\n"
 
     if not args.no_commit:
