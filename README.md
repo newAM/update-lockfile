@@ -6,6 +6,6 @@ A simple python script to update lockfiles and commit the result.
 
 Lockfiles supported:
 
-* `Cargo.lock`
-* `flake.lock`
-* `poetry.lock`
+- `Cargo.lock`
+- `flake.lock`
+- `poetry.lock`

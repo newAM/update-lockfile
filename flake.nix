@@ -1,17 +1,18 @@
 {
   description = "Lockfile updater";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+    treefmt.url = "github:numtide/treefmt-nix";
+    treefmt.inputs.nixpkgs.follows = "nixpkgs";
+  };
 
   outputs = {
     self,
     nixpkgs,
+    treefmt,
   }: let
-    src = builtins.path {
-      path = ./.;
-      name = "update-lockfile";
-    };
-
     overlay = final: prev: {
       update-lockfile =
         (prev.writers.makeScriptWriter {interpreter = "${prev.python3}/bin/python";}) "/bin/update-lockfile"
@@ -27,6 +28,17 @@
       import nixpkgs {
         inherit system;
         overlays = [overlay];
+      };
+
+    treefmtEval = system:
+      treefmt.lib.evalModule (importPkgs system) {
+        projectRootFile = "flake.nix";
+        programs = {
+          alejandra.enable = true;
+          prettier.enable = true;
+          ruff.enable = true;
+          taplo.enable = true;
+        };
       };
   in {
     overlays = {
@@ -57,15 +69,12 @@
     );
 
     formatter = forEachSystem (
-      system: let
-        pkgs = importPkgs system;
-      in
-        pkgs.alejandra
+      system: (treefmtEval system).config.build.wrapper
     );
 
     checks = let
-      nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices src [".nix"];
-      pySrc = nixpkgs.lib.sources.sourceFilesBySuffices src [".py" ".toml"];
+      nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices self [".nix"];
+      pySrc = nixpkgs.lib.sources.sourceFilesBySuffices self [".py" ".toml"];
     in
       forEachSystem (
         system: let
@@ -78,10 +87,7 @@
             touch $out
           '';
 
-          black = pkgs.runCommand "black" {} ''
-            ${pkgs.python3Packages.black}/bin/black ${pySrc}
-            touch $out
-          '';
+          formatting = (treefmtEval system).config.build.check self;
 
           flake8 =
             pkgs.runCommand "flake8"
@@ -96,11 +102,6 @@
               flake8 --max-line-length 88 ${pySrc}
               touch $out
             '';
-
-          alejandra = pkgs.runCommand "alejandra" {} ''
-            ${pkgs.alejandra}/bin/alejandra --check ${nixSrc}
-            touch $out
-          '';
 
           statix = pkgs.runCommand "statix" {} ''
             ${pkgs.statix}/bin/statix check ${nixSrc}
