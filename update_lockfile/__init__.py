@@ -82,11 +82,11 @@ async def git_add(file: str):
 
 
 async def is_dirty(file: str) -> bool:
-    try:
-        await run(["git", "diff", "-s", "--exit-code", file])
-        return False
-    except SubprocessError:
-        return True
+    proc = await asyncio.create_subprocess_exec(
+        "git", "diff", "-s", "--exit-code", file
+    )
+    await proc.communicate()
+    return proc.returncode == 1
 
 
 async def update_cargo() -> Optional[LockfileUpdate]:
