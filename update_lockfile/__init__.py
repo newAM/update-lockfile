@@ -46,10 +46,10 @@ def poetry_lock_diff(a: List[PoetryPackage], b: List[PoetryPackage]) -> List[str
             ret.append(f"removed {pa.name} {pa.version}")
             found.append(pa.name)
 
-        for pb in b:
-            if pb.name not in found:
-                ret.append(f"added {pa.name} {pa.version}")
-                found.append(pb.name)
+    for pb in b:
+        if pb.name not in found:
+            ret.append(f"added {pb.name} {pb.version}")
+            found.append(pb.name)
 
     return ret
 
