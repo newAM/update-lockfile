@@ -30,16 +30,15 @@
         overlays = [overlay];
       };
 
-    treefmtEval = system:
-      treefmt.lib.evalModule (importPkgs system) {
-        projectRootFile = "flake.nix";
-        programs = {
-          alejandra.enable = true;
-          prettier.enable = true;
-          ruff.enable = true;
-          taplo.enable = true;
-        };
+    treefmtSettings = {
+      projectRootFile = "flake.nix";
+      programs = {
+        alejandra.enable = true;
+        prettier.enable = true;
+        ruff.enable = true;
+        taplo.enable = true;
       };
+    };
   in {
     overlays = {
       default = overlay;
@@ -69,7 +68,7 @@
     );
 
     formatter = forEachSystem (
-      system: (treefmtEval system).config.build.wrapper
+      system: (treefmt.lib.evalModule (importPkgs system) treefmtSettings).config.build.wrapper
     );
 
     checks = let
@@ -87,21 +86,15 @@
             touch $out
           '';
 
-          formatting = (treefmtEval system).config.build.check self;
-
-          flake8 =
-            pkgs.runCommand "flake8"
-            {
-              buildInputs = with pkgs.python3Packages; [
-                flake8
-                flake8-bugbear
-                pep8-naming
-              ];
-            }
-            ''
-              flake8 --max-line-length 88 ${pySrc}
-              touch $out
-            '';
+          formatting =
+            (treefmt.lib.evalModule pkgs (treefmtSettings
+              // {
+                programs.ruff-check.enable = true;
+              }))
+            .config
+            .build
+            .check
+            self;
 
           statix = pkgs.runCommand "statix" {} ''
             ${pkgs.statix}/bin/statix check ${nixSrc}
