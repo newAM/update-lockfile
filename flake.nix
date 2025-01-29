@@ -14,7 +14,7 @@
 
     overlay = final: prev: {
       update-lockfile =
-        (prev.writers.makeScriptWriter {interpreter = "${prev.python311}/bin/python";}) "/bin/update-lockfile"
+        (prev.writers.makeScriptWriter {interpreter = "${prev.python3}/bin/python";}) "/bin/update-lockfile"
         (builtins.readFile ./update_lockfile.py);
     };
 
@@ -74,7 +74,7 @@
           inherit (pkgs) update-lockfile;
 
           pytest = pkgs.runCommand "pytest" {} ''
-            ${pkgs.python311Packages.pytest}/bin/pytest ${pySrc}
+            ${pkgs.python3Packages.pytest}/bin/pytest ${pySrc}
             touch $out
           '';
 
