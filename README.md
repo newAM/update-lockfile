@@ -4,7 +4,11 @@
 
 Update lockfiles from multiple package managers simultaneously and commit the results.
 
-Lockfiles supported:
+## Demo
+
+![update-lockfile demo](/demo.gif)
+
+## Lockfiles supported
 
 - `Cargo.lock`
 - `flake.lock`
