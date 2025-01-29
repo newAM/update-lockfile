@@ -4,7 +4,7 @@
   src,
   setuptools,
   rich,
-  pytestCheckHook,
+  callPackage,
 }: let
   pyprojectToml = lib.importTOML ./pyproject.toml;
 in
@@ -23,9 +23,12 @@ in
       rich
     ];
 
-    nativeCheckInputs = [
-      pytestCheckHook
-    ];
+    # tests are in passthru.tests for end-to-end CLI testing
+    doCheck = false;
+
+    passthru.tests = {
+      tests = callPackage ./tests.nix {};
+    };
 
     meta = {
       description = pyprojectToml.project.description;

@@ -76,6 +76,7 @@
         pkgs = importPkgs system;
       in {
         inherit (pkgs) update-lockfile;
+        inherit (pkgs.update-lockfile.passthru.tests) tests;
 
         formatting = ((treefmt.lib.evalModule pkgs (nixpkgs.lib.recursiveUpdate treefmtSettings
             {
