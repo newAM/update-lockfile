@@ -14,9 +14,9 @@
     treefmt,
   }: let
     overlay = final: prev: {
-      update-lockfile =
-        (prev.writers.makeScriptWriter {interpreter = "${prev.python3}/bin/python";}) "/bin/update-lockfile"
-        (builtins.readFile ./update_lockfile.py);
+      update-lockfile = prev.python3.pkgs.callPackage ./pkg.nix {
+        src = self;
+      };
     };
 
     forEachSystem = nixpkgs.lib.genAttrs [
@@ -35,7 +35,7 @@
       programs = {
         alejandra.enable = true;
         prettier.enable = true;
-        ruff.enable = true;
+        ruff-format.enable = true;
         taplo.enable = true;
       };
     };
@@ -71,36 +71,21 @@
       system: (treefmt.lib.evalModule (importPkgs system) treefmtSettings).config.build.wrapper
     );
 
-    checks = let
-      nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices self [".nix"];
-      pySrc = nixpkgs.lib.sources.sourceFilesBySuffices self [".py" ".toml"];
-    in
-      forEachSystem (
-        system: let
-          pkgs = importPkgs system;
-        in {
-          inherit (pkgs) update-lockfile;
+    checks = forEachSystem (
+      system: let
+        pkgs = importPkgs system;
+      in {
+        inherit (pkgs) update-lockfile;
 
-          pytest = pkgs.runCommand "pytest" {} ''
-            ${pkgs.python3Packages.pytest}/bin/pytest ${pySrc}
-            touch $out
-          '';
-
-          formatting =
-            (treefmt.lib.evalModule pkgs (treefmtSettings
-              // {
-                programs.ruff-check.enable = true;
-              }))
-            .config
-            .build
-            .check
-            self;
-
-          statix = pkgs.runCommand "statix" {} ''
-            ${pkgs.statix}/bin/statix check ${nixSrc}
-            touch $out
-          '';
-        }
-      );
+        formatting = ((treefmt.lib.evalModule pkgs (nixpkgs.lib.recursiveUpdate treefmtSettings
+            {
+              programs.ruff-check.enable = true;
+            }))
+          .config
+          .build
+          .check)
+        self;
+      }
+    );
   };
 }

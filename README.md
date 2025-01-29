@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/newAM/update-lockfile/workflows/CI/badge.svg)](https://github.com/newAM/update-lockfile/actions)
 
-A simple python script to update lockfiles and commit the result.
+Update lockfiles from multiple package managers simultaneously and commit the results.
 
 Lockfiles supported:
 

@@ -1,13 +1,7 @@
-import sys
 import os
+from update_lockfile import read_poetry_lock, PoetryPackage
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
-top_dir = os.path.abspath(os.path.join(this_dir, ".."))
-
-if top_dir not in sys.path:
-    sys.path.append(top_dir)
-
-from update_lockfile import read_poetry_lock, PoetryPackage  # noqa: E402
 
 
 def test_read_poetry_lock():

@@ -1,0 +1,31 @@
+[project]
+name = "update-lockfile"
+description = "Update lockfiles from multiple package managers simultaneously and commit the results."
+authors = [
+  { name = "Alex Martens", email = "alex+update.lockfile@thinglab.org" },
+]
+version = "1.0.0"
+license.file = "LICENSE"
+readme = "README.md"
+keywords = ["lockfile"]
+requires-python = ">= 3.12"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/newAM/update-lockfile"
+Changelog = "https://github.com/newAM/update-lockfile/blob/main/CHANGELOG.md"
+Issues = "https://github.com/newAM/update-lockfile/issues"
+
+[project.scripts]
+update-lockfile = "update_lockfile:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = ["pytest>=8.3.4", "ruff>=0.9.3"]
+
+[tool.ruff.lint]
+# Add flake8-bugbear and pep8-naming rules
+extend-select = ["B", "N"]
