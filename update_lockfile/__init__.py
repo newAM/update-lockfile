@@ -276,8 +276,8 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
 
     if not args.no_commit:
         await run(["git", "commit", "-m", msg])
-    else:
-        print(msg)
+
+    print(msg)
 
     return 0
 
