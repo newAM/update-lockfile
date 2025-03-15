@@ -202,7 +202,7 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
     for file in os.listdir():
         for lockfile in lockfiles:
             if file == lockfile.file_name:
-                if lockfile in args.skip:
+                if lockfile.skip_flag in args.skip:
                     print(f"Skipping {lockfile.file_name}")
                 else:
                     updates.append(lockfile)
