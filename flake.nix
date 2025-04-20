@@ -79,9 +79,9 @@
         inherit (pkgs.update-lockfile.passthru.tests) tests;
 
         formatting = ((treefmt.lib.evalModule pkgs (nixpkgs.lib.recursiveUpdate treefmtSettings
-            {
-              programs.ruff-check.enable = true;
-            }))
+          {
+            programs.ruff-check.enable = true;
+          }))
           .config
           .build
           .check)
