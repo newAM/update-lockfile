@@ -51,6 +51,7 @@
         app = {
           type = "app";
           program = "${pkgs.update-lockfile}/bin/update-lockfile";
+          inherit (pkgs.update-lockfile) meta;
         };
       in {
         default = app;
