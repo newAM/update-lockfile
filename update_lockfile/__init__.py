@@ -161,7 +161,7 @@ class Lockfile(NamedTuple):
         return f"{self.emoji} Updated {self.file_name}"
 
     def description_no_update(self) -> str:
-        return f"{self.emoji} {self.file_name} is already up to date"
+        return f"{self.emoji} {self.file_name} is up-to-date"
 
     def description_error(self) -> str:
         return f"{self.emoji} Failed to update {self.file_name}"
