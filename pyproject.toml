@@ -5,7 +5,7 @@ authors = [
   { name = "Alex Martens", email = "alex+update.lockfile@thinglab.org" },
 ]
 version = "1.0.0"
-license.file = "LICENSE"
+license = "MIT"
 readme = "README.md"
 keywords = ["lockfile"]
 requires-python = ">= 3.12"
