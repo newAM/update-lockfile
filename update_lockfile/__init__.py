@@ -2,9 +2,10 @@ import argparse
 import asyncio
 import os
 import tomllib
-from typing import List, NamedTuple, Optional, Callable, Any
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from dataclasses import dataclass
+from typing import Any, Callable, List, NamedTuple, Optional
+
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 
 class LockfileUpdate(NamedTuple):
@@ -148,6 +149,32 @@ async def update_poetry() -> Optional[LockfileUpdate]:
     return LockfileUpdate(lockfile, msg)
 
 
+async def update_uv() -> Optional[LockfileUpdate]:
+    lockfile = "uv.lock"
+    lines = await run(["uv", "lock", "--upgrade"])
+    if not await is_dirty(lockfile):
+        return None
+    await git_add(lockfile)
+
+    msg = []
+    for line in lines:
+        if line.startswith("Using "):
+            continue
+        if line.startswith("Resolved "):
+            continue
+        if line.startswith("Updated "):
+            msg.append("updated " + line[len("Updated ") :])
+            continue
+        if line.startswith("Added "):
+            msg.append("added " + line[len("Added ") :])
+            continue
+        if line.startswith("Removed "):
+            msg.append("removed " + line[len("Removed ") :])
+            continue
+
+    return LockfileUpdate(lockfile, msg)
+
+
 class Lockfile(NamedTuple):
     file_name: str
     function: Callable
@@ -183,8 +210,14 @@ lockfiles = [
     Lockfile(
         file_name="poetry.lock",
         function=update_poetry,
-        emoji="📖",
+        emoji="🐍",
         skip_flag="poetry",
+    ),
+    Lockfile(
+        file_name="uv.lock",
+        function=update_uv,
+        emoji="🐍",
+        skip_flag="uv",
     ),
 ]
 
@@ -293,7 +326,7 @@ def main():
     parser.add_argument(
         "-s",
         "--skip",
-        choices=["poetry", "cargo", "flake"],
+        choices=["poetry", "cargo", "flake", "uv"],
         action="append",
         default=[],
         help="Skip updating this type of lockfile",
