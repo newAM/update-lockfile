@@ -1,9 +1,11 @@
 import argparse
 import asyncio
+import json
 import os
 import tomllib
 from dataclasses import dataclass
-from typing import Any, Callable, List, NamedTuple, Optional
+from functools import partial
+from typing import Any, Callable, FrozenSet, List, NamedTuple, Optional
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -120,9 +122,36 @@ async def update_cargo() -> Optional[LockfileUpdate]:
     return LockfileUpdate(lockfile, msg)
 
 
-async def update_flake() -> Optional[LockfileUpdate]:
+async def flake_inputs() -> List[str]:
+    lines = await run(["nix", "flake", "metadata", "--json"])
+    data = json.loads("".join(lines))
+    root_id = data["locks"]["root"]
+    inputs = data["locks"]["nodes"][root_id].get("inputs") or {}
+    return list(inputs.keys())
+
+
+async def update_flake(
+    skip_flake_inputs: Optional[FrozenSet[str]] = None,
+) -> Optional[LockfileUpdate]:
     lockfile = "flake.lock"
-    lines = await run(["nix", "flake", "update"])
+    if skip_flake_inputs:
+        names = await flake_inputs()
+        unknown = skip_flake_inputs - set(names)
+        if unknown:
+            raise ValueError(
+                "Unknown flake input(s) to skip: "
+                + ", ".join(sorted(unknown))
+                + ". Valid inputs: "
+                + ", ".join(names)
+            )
+        to_update = [n for n in names if n not in skip_flake_inputs]
+        if not to_update:
+            print("All flake inputs skipped; not updating flake.lock")
+            return None
+        cmd = ["nix", "flake", "update", *to_update]
+    else:
+        cmd = ["nix", "flake", "update"]
+    lines = await run(cmd)
     if not await is_dirty(lockfile):
         return None
     await git_add(lockfile)
@@ -231,14 +260,19 @@ class UpdateTask:
 
 
 async def amain(args: argparse.Namespace) -> Optional[int]:
-    updates = []
+    updates: List[tuple[Lockfile, Callable]] = []
+    skip_flake = frozenset(args.skip_flake_input) if args.skip_flake_input else None
     for file in os.listdir():
         for lockfile in lockfiles:
             if file == lockfile.file_name:
                 if lockfile.skip_flag in args.skip:
                     print(f"Skipping {lockfile.file_name}")
                 else:
-                    updates.append(lockfile)
+                    if lockfile.file_name == "flake.lock" and skip_flake is not None:
+                        fn: Callable = partial(update_flake, skip_flake)
+                    else:
+                        fn = lockfile.function
+                    updates.append((lockfile, fn))
 
     num_updates: int = len(updates)
 
@@ -251,12 +285,12 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
         TextColumn("[progress.description]{task.description}"),
     ) as progress:
         update_tasks = []
-        for update in updates:
+        for lockfile, fn in updates:
             update_tasks.append(
                 UpdateTask(
-                    task=asyncio.create_task(update.function()),
-                    task_id=progress.add_task(update.description(), total=1),
-                    lockfile=update,
+                    task=asyncio.create_task(fn()),
+                    task_id=progress.add_task(lockfile.description(), total=1),
+                    lockfile=lockfile,
                 )
             )
 
@@ -330,6 +364,13 @@ def main():
         action="append",
         default=[],
         help="Skip updating this type of lockfile",
+    )
+    parser.add_argument(
+        "--skip-flake-input",
+        metavar="INPUT",
+        action="append",
+        default=[],
+        help="Skip updating this flake input",
     )
     args = parser.parse_args()
 
