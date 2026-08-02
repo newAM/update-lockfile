@@ -1,5 +1,6 @@
 import os
-from update_lockfile import read_poetry_lock, PoetryPackage, poetry_lock_diff
+
+from update_lockfile import PoetryPackage, poetry_lock_diff, read_poetry_lock
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 

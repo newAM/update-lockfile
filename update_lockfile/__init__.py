@@ -2,21 +2,23 @@ import argparse
 import asyncio
 import json
 import os
+import sys
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Callable, FrozenSet, List, NamedTuple, Optional
+from typing import Any, NamedTuple
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 
 class LockfileUpdate(NamedTuple):
     lockfile: str
-    lines: List[str]
+    lines: list[str]
 
 
 class SubprocessError(Exception):
-    def __init__(self, message: str, returncode: Optional[int]):
+    def __init__(self, message: str, returncode: int | None):
         super().__init__(message)
         self.returncode = returncode
 
@@ -26,7 +28,7 @@ class PoetryPackage(NamedTuple):
     version: str
 
 
-def read_poetry_lock(path: str) -> List[PoetryPackage]:
+def read_poetry_lock(path: str) -> list[PoetryPackage]:
     with open(path, "rb") as f:
         data = tomllib.load(f)
     ret = []
@@ -35,7 +37,7 @@ def read_poetry_lock(path: str) -> List[PoetryPackage]:
     return ret
 
 
-def poetry_lock_diff(a: List[PoetryPackage], b: List[PoetryPackage]) -> List[str]:
+def poetry_lock_diff(a: list[PoetryPackage], b: list[PoetryPackage]) -> list[str]:
     ret = []
 
     found = []
@@ -59,7 +61,7 @@ def poetry_lock_diff(a: List[PoetryPackage], b: List[PoetryPackage]) -> List[str
     return ret
 
 
-async def run(cmd: List[str]) -> List[str]:
+async def run(cmd: list[str]) -> list[str]:
     cmds = " ".join(cmd)
     env = dict(os.environ)
     env["NO_COLOR"] = "1"
@@ -93,7 +95,7 @@ async def is_dirty(file: str) -> bool:
     return proc.returncode == 1
 
 
-async def update_cargo() -> Optional[LockfileUpdate]:
+async def update_cargo() -> LockfileUpdate | None:
     lockfile = "Cargo.lock"
     lines = await run(["cargo", "update"])
     if not await is_dirty(lockfile):
@@ -122,7 +124,7 @@ async def update_cargo() -> Optional[LockfileUpdate]:
     return LockfileUpdate(lockfile, msg)
 
 
-async def flake_inputs() -> List[str]:
+async def flake_inputs() -> list[str]:
     lines = await run(["nix", "flake", "metadata", "--json"])
     data = json.loads("".join(lines))
     root_id = data["locks"]["root"]
@@ -131,8 +133,8 @@ async def flake_inputs() -> List[str]:
 
 
 async def update_flake(
-    skip_flake_inputs: Optional[FrozenSet[str]] = None,
-) -> Optional[LockfileUpdate]:
+    skip_flake_inputs: frozenset[str] | None = None,
+) -> LockfileUpdate | None:
     lockfile = "flake.lock"
     if skip_flake_inputs:
         names = await flake_inputs()
@@ -144,7 +146,7 @@ async def update_flake(
                 + ". Valid inputs: "
                 + ", ".join(names)
             )
-        to_update = [n for n in names if n not in skip_flake_inputs]
+        to_update = [n for n in names if n not in (skip_flake_inputs or frozenset())]
         if not to_update:
             print("All flake inputs skipped; not updating flake.lock")
             return None
@@ -163,7 +165,7 @@ async def update_flake(
     return LockfileUpdate(lockfile, msg)
 
 
-async def update_poetry() -> Optional[LockfileUpdate]:
+async def update_poetry() -> LockfileUpdate | None:
     lockfile = "poetry.lock"
     a = read_poetry_lock(lockfile)
     await run(["poetry", "update", "--no-interaction", "--no-ansi", "--lock"])
@@ -178,7 +180,7 @@ async def update_poetry() -> Optional[LockfileUpdate]:
     return LockfileUpdate(lockfile, msg)
 
 
-async def update_uv() -> Optional[LockfileUpdate]:
+async def update_uv() -> LockfileUpdate | None:
     lockfile = "uv.lock"
     lines = await run(["uv", "lock", "--upgrade"])
     if not await is_dirty(lockfile):
@@ -256,11 +258,11 @@ class UpdateTask:
     task: asyncio.Task
     task_id: Any
     lockfile: Lockfile
-    result: Optional[LockfileUpdate] = None
+    result: LockfileUpdate | None = None
 
 
-async def amain(args: argparse.Namespace) -> Optional[int]:
-    updates: List[tuple[Lockfile, Callable]] = []
+async def amain(args: argparse.Namespace) -> int | None:
+    updates: list[tuple[Lockfile, Callable]] = []
     skip_flake = frozenset(args.skip_flake_input) if args.skip_flake_input else None
     for file in os.listdir():
         for lockfile in lockfiles:
@@ -294,7 +296,7 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
                 )
             )
 
-        completions: List[str] = []
+        completions: list[str] = []
         while True:
             for update_task in update_tasks:
                 if update_task.task.done():
@@ -303,7 +305,7 @@ async def amain(args: argparse.Namespace) -> Optional[int]:
                     completions.append(update_task.lockfile.file_name)
                     try:
                         update_task.result = update_task.task.result()
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         print(e)
                         progress.update(
                             update_task.task_id,
@@ -375,7 +377,7 @@ def main():
     args = parser.parse_args()
 
     rc = asyncio.run(amain(args))
-    exit(rc)
+    sys.exit(rc)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
-import tempfile
 import subprocess
+import tempfile
 
 
 def test_no_lockfiles():
