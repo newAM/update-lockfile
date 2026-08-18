@@ -23,9 +23,6 @@ update-lockfile = "update_lockfile:main"
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
-[dependency-groups]
-dev = ["pytest>=8.3.4", "ruff>=0.9.3"]
-
 [tool.ruff.lint]
 # Add flake8-bugbear and pep8-naming rules
 extend-select = ["B", "N"]

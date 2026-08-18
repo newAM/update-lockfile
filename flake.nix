@@ -72,6 +72,26 @@
       system: (treefmt.lib.evalModule (importPkgs system) treefmtSettings).config.build.wrapper
     );
 
+    devShells = forEachSystem (
+      system: let
+        pkgs = importPkgs system;
+        pythonEnv = pkgs.python3.withPackages (ps:
+          with ps; [
+            pytest
+            rich
+            ruff
+            setuptools
+          ]);
+      in {
+        default = pkgs.mkShell {
+          packages = [pythonEnv];
+          shellHook = ''
+            export PYTHONPATH="${pythonEnv}/${pythonEnv.sitePackages}:$PWD:$PYTHONPATH"
+          '';
+        };
+      }
+    );
+
     checks = forEachSystem (
       system: let
         pkgs = importPkgs system;
