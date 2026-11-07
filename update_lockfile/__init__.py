@@ -61,6 +61,56 @@ def poetry_lock_diff(a: list[PoetryPackage], b: list[PoetryPackage]) -> list[str
     return ret
 
 
+def read_cargo_git_revs(path: str) -> dict[str, set[str]]:
+    """Map of git repository URL to locked commit hashes from a Cargo.lock."""
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+    ret: dict[str, set[str]] = {}
+    for pkg in data.get("package", []):
+        source = pkg.get("source")
+        if source is None or not source.startswith("git+"):
+            continue
+        # sources have the form: git+<url>?<reference>#<commit hash>
+        url, _, rev = source[len("git+") :].partition("#")
+        url = url.split("?")[0]
+        ret.setdefault(url, set()).add(rev)
+    return ret
+
+
+def cargo_update_msg(
+    lines: list[str],
+    git_revs_before: dict[str, set[str]],
+    git_revs_after: dict[str, set[str]],
+) -> list[str]:
+    msg = []
+    for line in lines:
+        stripped = line.strip()
+        line = stripped.lower()
+        if line == "updating crates.io index":
+            continue
+        if line.startswith("note:"):
+            continue
+        if line.startswith("locking "):
+            continue
+        if line.startswith("updating git repository "):
+            url = stripped[len("Updating git repository ") :].strip("`")
+            if git_revs_before.get(url) == git_revs_after.get(url):
+                # cargo always reports updating git repositories, even when the
+                # locked commit hash did not change
+                continue
+
+        words = line.split()
+        verb = words[0]
+
+        if verb.endswith("ing"):
+            verb = verb[:-3]
+            verb += "ed"
+
+        msg.append(f"{verb} " + " ".join(words[1:]))
+
+    return msg
+
+
 async def run(cmd: list[str]) -> list[str]:
     cmds = " ".join(cmd)
     env = dict(os.environ)
@@ -97,29 +147,13 @@ async def is_dirty(file: str) -> bool:
 
 async def update_cargo() -> LockfileUpdate | None:
     lockfile = "Cargo.lock"
+    git_revs_before = read_cargo_git_revs(lockfile)
     lines = await run(["cargo", "update"])
     if not await is_dirty(lockfile):
         return None
     await git_add(lockfile)
 
-    msg = []
-    for line in lines:
-        line = line.strip().lower()
-        if line == "updating crates.io index":
-            continue
-        if line.lower().startswith("note:"):
-            continue
-        if line.lower().startswith("locking "):
-            continue
-
-        words = line.split()
-        verb = words[0]
-
-        if verb.endswith("ing"):
-            verb = verb[:-3]
-            verb += "ed"
-
-        msg.append(f"{verb} " + " ".join(words[1:]))
+    msg = cargo_update_msg(lines, git_revs_before, read_cargo_git_revs(lockfile))
 
     return LockfileUpdate(lockfile, msg)
 
